@@ -146,6 +146,25 @@
   .dialog .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
   .dialog .btns.one { grid-template-columns: 1fr; }
 
+  /* 안내 */
+  .note { margin: 12px 0 0; }
+  details.guide summary { cursor: pointer; font-size: 19px; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  details.guide summary::-webkit-details-marker { display: none; }
+  details.guide summary::after { content: "▼"; font-size: 14px; color: var(--muted); }
+  details.guide[open] summary::after { content: "▲"; }
+  .guide ul { margin: 14px 0 0; padding-left: 20px; }
+  .guide li { margin-bottom: 8px; }
+  .guide .tip-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; }
+
+  /* 지난 기록 표 */
+  .history { margin-top: 14px; overflow-x: auto; }
+  .history table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  .history th, .history td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+  .history th { color: var(--muted); font-weight: 400; font-size: 14px; }
+  .history td.num, .history th.num { text-align: right; white-space: nowrap; }
+  .history tr.day td { background: var(--bg); }
+  .history tr.day td:last-child { white-space: nowrap; }
+
   @media (min-width: 720px) {
     .wrap { padding-top: 40px; }
   }
@@ -178,7 +197,24 @@
     <h2 id="t-score">오늘 점수</h2>
     <div class="score-line"><span class="score-now" id="scoreNow">0</span><span>/ <span id="goalText">100</span>점</span></div>
     <div class="bar" role="progressbar" aria-labelledby="t-score" aria-valuemin="0" id="bar"><div id="barFill"></div></div>
+    <p class="muted note">점수는 얼마나 힘차게, 얼마나 오래 움직였는지를 나타내요. 점수가 낮은 운동도 몸에 좋은 운동이에요.</p>
   </section>
+
+  <details class="card guide">
+    <summary>💡 건강하게 운동해요</summary>
+    <ul>
+      <li>운동하기 전에는 몸을 풀고, 끝나면 천천히 정리 운동을 해요.</li>
+      <li>운동하기 전, 하는 중, 끝난 뒤에 물을 조금씩 마셔요.</li>
+      <li>어지럽거나 아프면 바로 멈추고 어른께 말씀드려요.</li>
+      <li>안전한 곳에서 운동하고, 필요하면 보호 장비를 써요.</li>
+      <li>60분을 한 번에 하지 않아도 돼요. 10분, 20분씩 나눠서 해도 모두 더해져요.</li>
+      <li>숨이 차는 운동, 근육과 뼈를 튼튼하게 하는 운동(줄넘기, 매달리기 등), 몸을 부드럽게 하는 스트레칭을 골고루 해요.</li>
+    </ul>
+    <div class="tip-box">
+      <b style="font-weight:400">점수가 낮으면 나쁜 운동일까요? 아니에요!</b><br>
+      점수는 운동의 <b style="font-weight:400">세기</b>와 <b style="font-weight:400">시간</b>으로 계산해요. 스트레칭·요가처럼 천천히 하는 운동은 점수가 낮게 나오지만, 몸을 부드럽게 하고 다치지 않게 도와주는 좋은 운동이에요. 여러 운동을 골고루 하는 것이 가장 좋아요.
+    </div>
+  </details>
 
   <section class="card" aria-labelledby="t-add">
     <h2 id="t-add">운동 기록하기</h2>
@@ -226,6 +262,12 @@
     <h2 id="t-chart">나의 운동 그래프 <span class="muted">(최근 7일)</span></h2>
     <div class="chart" id="chart"></div>
     <table class="sr-only" id="chartTable"></table>
+  </section>
+
+  <section class="card" aria-labelledby="t-history">
+    <h2 id="t-history">지난 기록</h2>
+    <button type="button" class="btn btn-line" id="historyBtn" aria-expanded="false" aria-controls="history">지난 기록 모두 보기 ▼</button>
+    <div class="history hidden" id="history"></div>
   </section>
 </main>
 
@@ -318,6 +360,9 @@ $('loginForm').addEventListener('submit', async (e) => {
 
 $('logoutBtn').addEventListener('click', () => {
   code = ''; data = null;
+  historyOpen = false;
+  $('history').classList.add('hidden'); $('history').innerHTML = '';
+  $('historyBtn').setAttribute('aria-expanded', 'false'); $('historyBtn').textContent = '지난 기록 모두 보기 ▼';
   try { sessionStorage.removeItem('peCode'); } catch (_) {}
   $('codeInput').value = '';
   $('app').classList.add('hidden');
@@ -412,6 +457,7 @@ $('addForm').addEventListener('submit', async (e) => {
     data = await api(body);
     render();
     resetForm();
+    if (historyOpen) loadHistory();
     showResult(data.added);
   } catch (ex) {
     err.textContent = ex.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : ex.message;
@@ -482,6 +528,7 @@ function confirmDelete(rec) {
     try {
       data = await api({ action: 'delete', code, id: rec.id });
       render();
+      if (historyOpen) loadHistory();
       closeDialog();
     } catch (ex) {
       err.textContent = ex.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : ex.message;
@@ -583,6 +630,60 @@ function drawChart() {
 
   $('chartTable').innerHTML = '<caption>최근 7일 점수</caption><tr><th>날짜</th><th>점수</th></tr>' +
     days.map(d => `<tr><td>${d.date}</td><td>${Math.round(d.total)}</td></tr>`).join('');
+}
+
+/* ---------- 지난 기록 ---------- */
+let historyOpen = false;
+$('historyBtn').addEventListener('click', async () => {
+  historyOpen = !historyOpen;
+  $('historyBtn').setAttribute('aria-expanded', String(historyOpen));
+  $('historyBtn').textContent = historyOpen ? '접기 ▲' : '지난 기록 모두 보기 ▼';
+  $('history').classList.toggle('hidden', !historyOpen);
+  if (historyOpen) await loadHistory();
+});
+
+async function loadHistory() {
+  const box = $('history');
+  box.textContent = '불러오는 중이에요…';
+  try {
+    const res = await api({ action: 'history', code });
+    renderHistory(res.records, res.goal);
+  } catch (ex) {
+    box.textContent = ex.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : ex.message;
+  }
+}
+
+function renderHistory(records, goal) {
+  const box = $('history');
+  box.innerHTML = '';
+  if (!records.length) { box.textContent = '아직 기록이 없어요.'; return; }
+  const groups = [];
+  records.forEach(r => {
+    let g = groups[groups.length - 1];
+    if (!g || g.date !== r.date) { g = { date: r.date, items: [], total: 0 }; groups.push(g); }
+    g.items.push(r); g.total += r.score;
+  });
+  const table = document.createElement('table');
+  table.innerHTML = '<caption class="sr-only">날짜별 지난 운동 기록</caption><thead><tr><th>운동</th><th class="num">시간</th><th class="num">점수</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  groups.forEach(g => {
+    const dt = new Date(g.date + 'T00:00:00');
+    const head = document.createElement('tr'); head.className = 'day';
+    const c1 = document.createElement('td'); c1.colSpan = 2;
+    c1.textContent = `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${DAY[dt.getDay()]})`;
+    const c2 = document.createElement('td'); c2.className = 'num';
+    c2.textContent = `합계 ${Math.round(g.total)}점${g.total >= goal ? ' 🏆' : ''}`;
+    head.append(c1, c2); tbody.appendChild(head);
+    g.items.forEach(r => {
+      const tr = document.createElement('tr');
+      const a = document.createElement('td'); a.textContent = recName(r);
+      const b = document.createElement('td'); b.className = 'num'; b.textContent = `${r.minutes}분`;
+      const c = document.createElement('td'); c.className = 'num'; c.textContent = `${Math.round(r.score)}점`;
+      tr.append(a, b, c); tbody.appendChild(tr);
+    });
+  });
+  table.appendChild(tbody);
+  box.appendChild(table);
 }
 
 let resizeTimer;
