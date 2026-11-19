@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>튼튼 운동 일기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #E6FBFC;
+    --surface: #FFFFFF;
+    --border: #B8F2F6;
+    --accent: #6DE3EB;
+    --main: #00CEDC;
+    --dark: #007C87;
+    --dark-pressed: #00626B;
+    --text: #0B3F45;
+    --muted: #4F7A80;
+    --error: #B3261E;
+    --radius: 8px;
+    --font: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 17px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 28px; font-weight: 400; margin: 0; }
+  h2 { font-size: 21px; font-weight: 400; margin: 0 0 14px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-top: 16px;
+  }
+  .muted { color: var(--muted); font-size: 15px; }
+  .hidden { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  button { font-family: inherit; font-size: inherit; cursor: pointer; }
+  .btn {
+    display: block; width: 100%;
+    min-height: 52px; padding: 10px 16px;
+    border-radius: var(--radius); border: 1px solid var(--dark);
+    background: var(--dark); color: #FFFFFF;
+    font-size: 19px;
+  }
+  .btn:active { background: var(--dark-pressed); border-color: var(--dark-pressed); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn-main { background: var(--main); border-color: var(--main); color: var(--text); }
+  .btn-main:active { background: var(--accent); border-color: var(--accent); }
+  .btn-line { background: var(--surface); color: var(--text); border-color: var(--border); }
+  .btn-line:active { background: var(--bg); }
+
+  input[type=text], input[type=number] {
+    width: 100%; min-height: 52px; padding: 10px 14px;
+    font-family: inherit; font-size: 19px; color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  input:focus, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  label.field { display: block; margin-bottom: 8px; }
+  .error { color: var(--error); font-size: 15px; min-height: 22px; margin: 8px 0 0; }
+
+  /* 입장 화면 */
+  #login { min-height: 100vh; display: flex; align-items: center; }
+  #login .card { width: 100%; text-align: center; padding: 32px 20px; }
+  #login h1 { margin-bottom: 8px; }
+  #login input { text-align: center; letter-spacing: 4px; text-transform: uppercase; margin: 20px 0 4px; }
+
+  /* 머리말 */
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .top .btn { width: auto; min-height: 40px; font-size: 15px; padding: 6px 14px; }
+
+  /* 오늘 점수 */
+  .score-line { display: flex; align-items: baseline; gap: 6px; }
+  .score-now { font-size: 44px; line-height: 1; }
+  .bar { height: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 12px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--main); width: 0; transition: width .4s; }
+
+  /* 종목 */
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .chip {
+    min-height: 48px; padding: 8px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text);
+  }
+  .chip[aria-pressed=true] { background: var(--main); border-color: var(--main); }
+  .chip.extra.collapsed { display: none; }
+  .more-btn { margin-top: 8px; min-height: 44px; font-size: 16px; }
+  .etc-toggle { margin-top: 10px; }
+  .etc-toggle[aria-pressed=true] { background: var(--main); border-color: var(--main); }
+  .etc-panel { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
+  .step { margin-bottom: 18px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-title { margin-bottom: 8px; }
+  .levels { display: grid; gap: 8px; }
+  .level {
+    display: flex; gap: 12px; align-items: center; text-align: left;
+    padding: 12px 14px; min-height: 56px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text);
+  }
+  .level[aria-pressed=true] { background: var(--main); border-color: var(--main); }
+  .level b { font-weight: 400; font-size: 19px; min-width: 60px; white-space: nowrap; }
+  .level span { font-size: 15px; }
+  .minutes-row { display: flex; align-items: center; gap: 10px; }
+  .minutes-row input { max-width: 140px; text-align: center; }
+  .form-gap { margin-top: 20px; }
+
+  /* 오늘 한 운동 */
+  .records { list-style: none; margin: 0; padding: 0; }
+  .records li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .records li:first-child { border-top: 0; padding-top: 0; }
+  .records .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .records .pts { white-space: nowrap; }
+  .del { min-height: 40px; padding: 4px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 15px; }
+  .del:active { background: var(--bg); }
+
+  /* 그래프 */
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart text { font-family: var(--font); fill: var(--muted); font-size: 13px; }
+  .tip {
+    position: absolute; pointer-events: none; transform: translate(-50%, -110%);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 4px 10px; font-size: 15px; white-space: nowrap;
+  }
+
+  /* 창 */
+  .overlay { position: fixed; inset: 0; background: rgba(11, 63, 69, .35); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  .dialog { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 420px; padding: 28px 22px 22px; text-align: center; }
+  .dialog svg { width: 140px; height: 140px; }
+  .dialog .big { font-size: 24px; margin: 10px 0 6px; }
+  .dialog p { margin: 0 0 8px; }
+  .dialog .hint { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin: 14px 0 4px; }
+  .dialog .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+  .dialog .btns.one { grid-template-columns: 1fr; }
+
+  @media (min-width: 720px) {
+    .wrap { padding-top: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ① 입장 화면 -->
+<section id="login" class="wrap">
+  <div class="card">
+    <h1>🏃 튼튼 운동 일기</h1>
+    <p class="muted">선생님께 받은 코드를 입력하세요.</p>
+    <form id="loginForm" autocomplete="off">
+      <label for="codeInput" class="sr-only">내 코드</label>
+      <input id="codeInput" type="text" maxlength="12" placeholder="내 코드" autocapitalize="characters" spellcheck="false">
+      <p class="error" id="loginError" role="alert"></p>
+      <button class="btn" type="submit" id="loginBtn">들어가기</button>
+    </form>
+  </div>
+</section>
+
+<!-- ② 메인 화면 -->
+<main id="app" class="wrap hidden">
+  <div class="top">
+    <h1>🏃 튼튼 운동 일기</h1>
+    <button class="btn btn-line" id="logoutBtn" type="button">나가기</button>
+  </div>
+
+  <section class="card" aria-labelledby="t-score">
+    <h2 id="t-score">오늘 점수</h2>
+    <div class="score-line"><span class="score-now" id="scoreNow">0</span><span>/ <span id="goalText">100</span>점</span></div>
+    <div class="bar" role="progressbar" aria-labelledby="t-score" aria-valuemin="0" id="bar"><div id="barFill"></div></div>
+  </section>
+
+  <section class="card" aria-labelledby="t-add">
+    <h2 id="t-add">운동 기록하기</h2>
+    <form id="addForm" autocomplete="off">
+      <div class="step-title">어떤 운동을 했나요?</div>
+      <div class="chips" id="chips"></div>
+      <button type="button" class="btn btn-line more-btn hidden" id="moreBtn" aria-expanded="false" aria-controls="chips">더 보기 ▼</button>
+      <button type="button" class="btn btn-line etc-toggle" id="etcToggle" aria-pressed="false">기준표에 없는 종목으로 운동했어요</button>
+
+      <div class="etc-panel hidden" id="etcPanel">
+        <div class="step">
+          <label class="field step-title" for="etcName">① 무슨 운동을 했나요?</label>
+          <input id="etcName" type="text" maxlength="15" placeholder="예: 훌라후프">
+          <p class="muted" style="margin:6px 0 0">운동 이름만 써 주세요. (15자 이내)</p>
+        </div>
+        <div class="step">
+          <div class="step-title">② 얼마나 힘들었나요?</div>
+          <div class="levels" id="levels">
+            <button type="button" class="level" data-level="light" aria-pressed="false"><b>가벼운</b><span>숨이 차지 않아요. 노래도 부를 수 있어요.</span></button>
+            <button type="button" class="level" data-level="moderate" aria-pressed="false"><b>보통</b><span>숨이 조금 차요. 말은 할 수 있어요.</span></button>
+            <button type="button" class="level" data-level="vigorous" aria-pressed="false"><b>힘찬</b><span>숨이 많이 차서 말하기 힘들어요.</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-gap">
+        <label class="field step-title" for="minutes" id="minutesLabel">몇 분 했나요?</label>
+        <div class="minutes-row">
+          <input id="minutes" type="number" inputmode="numeric" min="1" max="180" step="1" placeholder="0">
+          <span>분</span>
+        </div>
+      </div>
+      <p class="error" id="addError" role="alert"></p>
+      <button class="btn" type="submit" id="addBtn">기록하기</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="t-today">
+    <h2 id="t-today">오늘 한 운동</h2>
+    <ul class="records" id="records"></ul>
+    <p class="muted hidden" id="noRecords">아직 기록이 없어요.</p>
+  </section>
+
+  <section class="card" aria-labelledby="t-chart">
+    <h2 id="t-chart">나의 운동 그래프 <span class="muted">(최근 7일)</span></h2>
+    <div class="chart" id="chart"></div>
+    <table class="sr-only" id="chartTable"></table>
+  </section>
+</main>
+
+<!-- ③ 창 -->
+<div class="overlay hidden" id="overlay" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <div class="dialog" id="dialog"></div>
+</div>
+
+<script>
+/* ▼ Apps Script 웹 앱 주소를 여기에 붙여 넣으세요 ▼ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxD8HAFSela2Z4aAD3MYyXlKQLLNUl_EFO7K7FJOOO82dp1DDiHRxm6N4LMRcR4p-Rk/exec';
+
+const ART = {
+  win: `<svg viewBox="0 0 140 140" aria-hidden="true">
+    <path d="M22 30l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z" fill="#6DE3EB"/>
+    <path d="M118 22l3 6 7 1-5 5 1 7-6-4-6 4 1-7-5-5 7-1z" fill="#6DE3EB"/>
+    <path d="M112 70l2 5 5 .5-4 3.5 1 5-4-3-4 3 1-5-4-3.5 5-.5z" fill="#B8F2F6"/>
+    <path d="M46 30h48v20c0 16-10 28-24 28S46 66 46 50z" fill="#00CEDC" stroke="#0B3F45" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M46 36H32c0 14 6 22 16 24M94 36h14c0 14-6 22-16 24" fill="none" stroke="#0B3F45" stroke-width="3" stroke-linecap="round"/>
+    <path d="M64 78h12v18H64z" fill="#007C87" stroke="#0B3F45" stroke-width="3"/>
+    <rect x="48" y="96" width="44" height="12" rx="4" fill="#007C87" stroke="#0B3F45" stroke-width="3"/>
+    <rect x="40" y="108" width="60" height="12" rx="4" fill="#00CEDC" stroke="#0B3F45" stroke-width="3"/>
+    <path d="M60 46l7 7 13-14" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  cheer: `<svg viewBox="0 0 140 140" aria-hidden="true">
+    <circle cx="70" cy="60" r="40" fill="#E6FBFC" stroke="#0B3F45" stroke-width="3"/>
+    <circle cx="56" cy="54" r="4" fill="#0B3F45"/><circle cx="84" cy="54" r="4" fill="#0B3F45"/>
+    <path d="M54 70c8 10 24 10 32 0" fill="none" stroke="#0B3F45" stroke-width="3" stroke-linecap="round"/>
+    <path d="M48 44q8-6 16-2M76 42q8-4 16 2" fill="none" stroke="#0B3F45" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="46" cy="68" r="5" fill="#B8F2F6"/><circle cx="94" cy="68" r="5" fill="#B8F2F6"/>
+    <path d="M28 112c0-8 6-12 14-12h18l8 8h20c8 0 12 4 12 10v4H28z" fill="#00CEDC" stroke="#0B3F45" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M28 122h72" stroke="#007C87" stroke-width="5" stroke-linecap="round"/>
+    <path d="M46 100l4 8M54 100l4 8" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M112 92l10-6M114 104h12M112 116l10 6" stroke="#6DE3EB" stroke-width="4" stroke-linecap="round"/>
+  </svg>`
+};
+const WIN_MSG = [
+  '오늘 목표 달성! 정말 멋져요!',
+  '해냈어요! 몸이 고마워하고 있어요.',
+  '목표를 넘었어요! 오늘도 최고예요.',
+  '대단해요! 꾸준함이 힘이에요.',
+  '목표 달성! 내일도 같이 움직여요.'
+];
+const CHEER_MSG = [
+  '좋아요, 잘하고 있어요!',
+  '조금만 더 움직이면 목표예요!',
+  '오늘도 한 걸음 나아갔어요!',
+  '시작이 반이에요. 계속 가 봐요!',
+  '멋진 출발이에요!'
+];
+
+let code = '';
+let data = null;            // 서버에서 받은 상태
+let selected = null;        // 고른 종목 이름 (기타일 때는 null)
+let etcLevel = null;
+let busy = false;
+const FIRST_CHIPS = 6;      // 처음에 보이는 종목 수 (강도표 위에서부터)
+
+const $ = (id) => document.getElementById(id);
+
+async function api(body) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || '문제가 생겼어요.');
+  return json;
+}
+
+/* ---------- 입장 ---------- */
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const c = $('codeInput').value.trim().toUpperCase();
+  $('loginError').textContent = '';
+  if (!c) { $('loginError').textContent = '코드를 입력해 주세요.'; return; }
+  $('loginBtn').disabled = true;
+  try {
+    data = await api({ action: 'login', code: c });
+    code = c;
+    try { sessionStorage.setItem('peCode', c); } catch (_) {}
+    showApp();
+  } catch (err) {
+    $('loginError').textContent = err.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : err.message;
+  } finally {
+    $('loginBtn').disabled = false;
+  }
+});
+
+$('logoutBtn').addEventListener('click', () => {
+  code = ''; data = null;
+  try { sessionStorage.removeItem('peCode'); } catch (_) {}
+  $('codeInput').value = '';
+  $('app').classList.add('hidden');
+  $('login').classList.remove('hidden');
+});
+
+function showApp() {
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  buildChips();
+  render();
+}
+
+/* ---------- 종목 고르기 ---------- */
+function buildChips() {
+  const box = $('chips');
+  box.innerHTML = '';
+  const list = data.sports.filter(s => !s.etc);
+  list.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = i < FIRST_CHIPS ? 'chip' : 'chip extra collapsed';
+    b.textContent = s.name;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => pickSport(s.name));
+    box.appendChild(b);
+  });
+  $('moreBtn').classList.toggle('hidden', list.length <= FIRST_CHIPS);
+  setMore(false);
+  $('minutes').max = data.maxMinutes;
+  $('etcName').maxLength = data.maxName;
+}
+
+function setMore(open) {
+  document.querySelectorAll('.chip.extra').forEach(b => b.classList.toggle('collapsed', !open));
+  $('moreBtn').setAttribute('aria-expanded', String(open));
+  $('moreBtn').textContent = open ? '접기 ▲' : '더 보기 ▼';
+}
+$('moreBtn').addEventListener('click', () => setMore($('moreBtn').getAttribute('aria-expanded') !== 'true'));
+
+function pickSport(name) {
+  selected = name;
+  document.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', String(b.textContent === name)));
+  $('etcToggle').setAttribute('aria-pressed', 'false');
+  $('etcPanel').classList.add('hidden');
+  $('minutesLabel').textContent = '몇 분 했나요?';
+  $('addError').textContent = '';
+}
+
+$('etcToggle').addEventListener('click', () => {
+  selected = null;
+  document.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  $('etcToggle').setAttribute('aria-pressed', 'true');
+  $('etcPanel').classList.remove('hidden');
+  $('minutesLabel').textContent = '③ 몇 분 했나요?';
+  $('addError').textContent = '';
+  $('etcName').focus();
+});
+
+document.querySelectorAll('.level').forEach(b => b.addEventListener('click', () => {
+  etcLevel = b.dataset.level;
+  document.querySelectorAll('.level').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+}));
+
+/* ---------- 기록하기 ---------- */
+$('addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (busy) return;
+  const isEtc = $('etcToggle').getAttribute('aria-pressed') === 'true';
+  const minutes = Number($('minutes').value);
+  const err = $('addError');
+  err.textContent = '';
+
+  let body = { action: 'add', code, minutes };
+  if (isEtc) {
+    const name = $('etcName').value.trim();
+    if (!name) { err.textContent = '무슨 운동을 했는지 써 주세요.'; return; }
+    if (!etcLevel) { err.textContent = '얼마나 힘들었는지 골라 주세요.'; return; }
+    const etc = data.sports.find(s => s.etc === etcLevel);
+    body.sport = etc.name;
+    body.customName = name;
+  } else {
+    if (!selected) { err.textContent = '어떤 운동을 했는지 골라 주세요.'; return; }
+    body.sport = selected;
+  }
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > data.maxMinutes) {
+    err.textContent = `시간은 1~${data.maxMinutes}분 사이로 써 주세요.`; return;
+  }
+
+  busy = true; $('addBtn').disabled = true;
+  try {
+    data = await api(body);
+    render();
+    resetForm();
+    showResult(data.added);
+  } catch (ex) {
+    err.textContent = ex.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : ex.message;
+  } finally {
+    busy = false; $('addBtn').disabled = false;
+  }
+});
+
+function resetForm() {
+  selected = null; etcLevel = null;
+  document.querySelectorAll('.chip, .level').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  $('etcToggle').setAttribute('aria-pressed', 'false');
+  $('etcPanel').classList.add('hidden');
+  $('etcName').value = '';
+  $('minutes').value = '';
+  $('minutesLabel').textContent = '몇 분 했나요?';
+  setMore(false);
+}
+
+/* ---------- 결과 창 ---------- */
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function showResult(added) {
+  const total = Math.round(data.todayTotal);
+  const goal = data.goal;
+  const dlg = $('dialog');
+  dlg.innerHTML = '';
+  const art = document.createElement('div');
+  const big = document.createElement('p'); big.className = 'big'; big.id = 'dlgTitle';
+  const sub = document.createElement('p');
+
+  if (data.todayTotal >= goal) {
+    art.innerHTML = ART.win;
+    big.textContent = pick(WIN_MSG);
+    sub.textContent = `오늘 점수 ${total}점`;
+    dlg.append(art, big, sub);
+  } else {
+    art.innerHTML = ART.cheer;
+    big.textContent = pick(CHEER_MSG);
+    sub.textContent = `오늘 점수 ${total}점`;
+    const remain = goal - data.todayTotal;
+    const perMin = added.met / data.divisor;
+    const need = Math.ceil(remain / perMin);
+    const label = added.customName || added.sport;
+    const hint = document.createElement('p'); hint.className = 'hint';
+    hint.textContent = `${Math.ceil(remain)}점 남았어요! ${label} ${need}분이면 달성할 수 있어요 💪`;
+    dlg.append(art, big, sub, hint);
+  }
+  const btns = document.createElement('div'); btns.className = 'btns one';
+  const ok = document.createElement('button'); ok.className = 'btn btn-main'; ok.type = 'button'; ok.textContent = '확인';
+  ok.addEventListener('click', closeDialog);
+  btns.append(ok); dlg.append(btns);
+  openDialog(ok);
+}
+
+function confirmDelete(rec) {
+  const dlg = $('dialog');
+  dlg.innerHTML = '';
+  const big = document.createElement('p'); big.className = 'big'; big.id = 'dlgTitle'; big.textContent = '정말 지울까요?';
+  const sub = document.createElement('p'); sub.textContent = `${recName(rec)} ${rec.minutes}분 (${Math.round(rec.score)}점)`;
+  const err = document.createElement('p'); err.className = 'error';
+  const btns = document.createElement('div'); btns.className = 'btns';
+  const no = document.createElement('button'); no.className = 'btn btn-line'; no.type = 'button'; no.textContent = '아니요';
+  const yes = document.createElement('button'); yes.className = 'btn'; yes.type = 'button'; yes.textContent = '지우기';
+  no.addEventListener('click', closeDialog);
+  yes.addEventListener('click', async () => {
+    yes.disabled = true; no.disabled = true;
+    try {
+      data = await api({ action: 'delete', code, id: rec.id });
+      render();
+      closeDialog();
+    } catch (ex) {
+      err.textContent = ex.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : ex.message;
+      yes.disabled = false; no.disabled = false;
+    }
+  });
+  btns.append(no, yes);
+  dlg.append(big, sub, err, btns);
+  openDialog(no);
+}
+
+function openDialog(focusEl) { $('overlay').classList.remove('hidden'); focusEl.focus(); }
+function closeDialog() { $('overlay').classList.add('hidden'); }
+$('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeDialog(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDialog(); });
+
+/* ---------- 화면 그리기 ---------- */
+function recName(r) {
+  if (!r.customName) return r.sport;
+  const m = r.sport.match(/^기타\((가벼운|보통|힘찬)/);
+  return m ? `${r.customName}(${m[1]})` : r.customName;
+}
+
+function render() {
+  const total = data.todayTotal;
+  $('scoreNow').textContent = Math.round(total);
+  $('goalText').textContent = data.goal;
+  $('barFill').style.width = Math.min(100, total / data.goal * 100) + '%';
+  $('bar').setAttribute('aria-valuemax', data.goal);
+  $('bar').setAttribute('aria-valuenow', Math.round(total));
+
+  const ul = $('records');
+  ul.innerHTML = '';
+  data.todayRecords.forEach(r => {
+    const li = document.createElement('li');
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = `${recName(r)} ${r.minutes}분`;
+    const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = `${Math.round(r.score)}점`;
+    const del = document.createElement('button'); del.className = 'del'; del.type = 'button'; del.textContent = '지우기';
+    del.setAttribute('aria-label', `${recName(r)} ${r.minutes}분 기록 지우기`);
+    del.addEventListener('click', () => confirmDelete(r));
+    li.append(name, pts, del);
+    ul.appendChild(li);
+  });
+  $('noRecords').classList.toggle('hidden', data.todayRecords.length > 0);
+  drawChart();
+}
+
+/* ---------- 7일 그래프 ---------- */
+const DAY = ['일', '월', '화', '수', '목', '금', '토'];
+function drawChart() {
+  const box = $('chart');
+  const days = data.days;
+  const goal = data.goal;
+  const W = Math.max(300, Math.round(box.clientWidth)), H = 260, L = 36, R = 64, T = 20, B = 48;
+  const maxV = Math.max(goal * 1.5, ...days.map(d => d.total));
+  const step = maxV > 300 ? 100 : 50;
+  const top = Math.ceil(maxV / step) * step;
+  const x = (i) => L + (W - L - R) * (i / (days.length - 1));
+  const y = (v) => T + (H - T - B) * (1 - v / top);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="최근 7일 운동 점수 그래프, 목표 ${goal}점">`;
+  for (let v = 0; v <= top; v += step) {
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#E6FBFC" stroke-width="1"/>`;
+    s += `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  s += `<line x1="${L}" x2="${W - R}" y1="${y(goal)}" y2="${y(goal)}" stroke="#00CEDC" stroke-width="2" stroke-dasharray="6 5"/>`;
+  s += `<text x="${W - R + 8}" y="${y(goal) + 5}" text-anchor="start" style="fill:#007C87">목표 ${goal}</text>`;
+  const pts = days.map((d, i) => `${x(i)},${y(d.total)}`).join(' ');
+  s += `<polyline points="${pts}" fill="none" stroke="#007C87" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  days.forEach((d, i) => {
+    const dt = new Date(d.date + 'T00:00:00');
+    const isToday = i === days.length - 1;
+    const lbl = isToday ? '오늘' : `${dt.getMonth() + 1}/${dt.getDate()}`;
+    s += `<text x="${x(i)}" y="${H - B + 22}" text-anchor="middle"${isToday ? ' style="fill:#0B3F45"' : ''}>${lbl}</text>`;
+    s += `<text x="${x(i)}" y="${H - B + 40}" text-anchor="middle">${DAY[dt.getDay()]}</text>`;
+    s += `<circle cx="${x(i)}" cy="${y(d.total)}" r="5" fill="${d.total >= goal ? '#00CEDC' : '#FFFFFF'}" stroke="#007C87" stroke-width="2"/>`;
+    if (isToday) s += `<text x="${x(i)}" y="${y(d.total) - 12}" text-anchor="middle" style="fill:#0B3F45;font-size:15px">${Math.round(d.total)}</text>`;
+    s += `<rect class="hit" data-i="${i}" x="${x(i) - 28}" y="${T}" width="56" height="${H - T - B}" fill="transparent"/>`;
+  });
+  s += `</svg><div class="tip hidden" id="tip"></div>`;
+  box.innerHTML = s;
+
+  const tip = $('tip');
+  const svg = box.querySelector('svg');
+  const show = (i) => {
+    const d = days[i];
+    const rect = svg.getBoundingClientRect();
+    const k = rect.width / W;
+    tip.textContent = `${d.date.slice(5).replace('-', '/')} · ${Math.round(d.total)}점`;
+    tip.style.left = (x(i) * k) + 'px';
+    tip.style.top = (y(d.total) * k) + 'px';
+    tip.classList.remove('hidden');
+  };
+  box.querySelectorAll('.hit').forEach(h => {
+    h.addEventListener('mouseenter', () => show(+h.dataset.i));
+    h.addEventListener('click', () => show(+h.dataset.i));
+  });
+  svg.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+
+  $('chartTable').innerHTML = '<caption>최근 7일 점수</caption><tr><th>날짜</th><th>점수</th></tr>' +
+    days.map(d => `<tr><td>${d.date}</td><td>${Math.round(d.total)}</td></tr>`).join('');
+}
+
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (data) drawChart(); }, 150); });
+
+/* ---------- 새로고침해도 이어서 ---------- */
+(async () => {
+  let saved = '';
+  try { saved = sessionStorage.getItem('peCode') || ''; } catch (_) {}
+  if (!saved) return;
+  $('codeInput').value = saved;
+  $('loginForm').requestSubmit();
+})();
+</script>
+</body>
+</html>
