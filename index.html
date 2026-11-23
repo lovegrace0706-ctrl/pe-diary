@@ -61,7 +61,7 @@
   .btn-line { background: var(--surface); color: var(--text); border-color: var(--border); }
   .btn-line:active { background: var(--bg); }
 
-  input[type=text], input[type=number] {
+  input[type=text], input[type=number], input[type=password] {
     width: 100%; min-height: 52px; padding: 10px 14px;
     font-family: inherit; font-size: 19px; color: var(--text);
     background: var(--surface);
@@ -82,7 +82,10 @@
   #login { min-height: 100vh; display: flex; align-items: center; }
   #login .card { width: 100%; text-align: center; padding: 32px 20px; }
   #login h1 { margin-bottom: 8px; }
-  #login input { text-align: center; letter-spacing: 4px; text-transform: uppercase; margin: 20px 0 4px; }
+  #login input { text-align: center; letter-spacing: 4px; margin: 20px 0 4px; }
+  #login #codeInput { text-transform: uppercase; }
+  #login #pwInput { margin-top: 8px; }
+  #login input::placeholder { letter-spacing: 0; }
 
   /* 머리말 */
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -183,10 +186,12 @@
 <section id="login" class="wrap">
   <div class="card">
     <h1>🏃 튼튼 운동 일기</h1>
-    <p class="muted">선생님께 받은 코드를 입력하세요.</p>
+    <p class="muted">선생님께 받은 코드와 비밀번호를 입력하세요.</p>
     <form id="loginForm" autocomplete="off">
       <label for="codeInput" class="sr-only">내 코드</label>
       <input id="codeInput" type="text" maxlength="12" placeholder="내 코드" autocapitalize="characters" spellcheck="false">
+      <label for="pwInput" class="sr-only">비밀번호</label>
+      <input id="pwInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="비밀번호 (숫자 4자리)" autocomplete="current-password">
       <p class="error" id="loginError" role="alert"></p>
       <button class="btn" type="submit" id="loginBtn">들어가기</button>
     </form>
@@ -281,6 +286,8 @@
     <button type="button" class="btn btn-line" id="historyBtn" aria-expanded="false" aria-controls="history">지난 기록 모두 보기 ▼</button>
     <div class="history hidden" id="history"></div>
   </section>
+
+  <button type="button" class="btn btn-line" id="pwBtn" style="margin-top:16px">🔒 비밀번호 바꾸기</button>
 </main>
 
 <!-- ③ 창 -->
@@ -332,6 +339,7 @@ const CHEER_MSG = [
 ];
 
 let code = '';
+let pw = '';
 let data = null;            // 서버에서 받은 상태
 let selected = null;        // 고른 종목 이름 (기타일 때는 null)
 let etcLevel = null;
@@ -341,6 +349,7 @@ const FIRST_CHIPS = 6;      // 처음에 보이는 종목 수 (강도표 위에�
 const $ = (id) => document.getElementById(id);
 
 async function api(body) {
+  body = Object.assign({ code, password: pw }, body);
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -355,13 +364,15 @@ async function api(body) {
 $('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const c = $('codeInput').value.trim().toUpperCase();
+  const p = $('pwInput').value.trim();
   $('loginError').textContent = '';
   if (!c) { $('loginError').textContent = '코드를 입력해 주세요.'; return; }
+  if (!/^\d{4}$/.test(p)) { $('loginError').textContent = '비밀번호 숫자 4자리를 입력해 주세요.'; return; }
   $('loginBtn').disabled = true;
   try {
-    data = await api({ action: 'login', code: c });
-    code = c;
-    try { sessionStorage.setItem('peCode', c); } catch (_) {}
+    data = await api({ action: 'login', code: c, password: p });
+    code = c; pw = p;
+    try { sessionStorage.setItem('peCode', c); sessionStorage.setItem('pePw', p); } catch (_) {}
     showApp();
   } catch (err) {
     $('loginError').textContent = err.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : err.message;
@@ -371,12 +382,12 @@ $('loginForm').addEventListener('submit', async (e) => {
 });
 
 $('logoutBtn').addEventListener('click', () => {
-  code = ''; data = null;
+  code = ''; pw = ''; data = null;
   historyOpen = false;
   $('history').classList.add('hidden'); $('history').innerHTML = '';
   $('historyBtn').setAttribute('aria-expanded', 'false'); $('historyBtn').textContent = '지난 기록 모두 보기 ▼';
-  try { sessionStorage.removeItem('peCode'); } catch (_) {}
-  $('codeInput').value = '';
+  try { sessionStorage.removeItem('peCode'); sessionStorage.removeItem('pePw'); } catch (_) {}
+  $('codeInput').value = ''; $('pwInput').value = '';
   $('app').classList.add('hidden');
   $('login').classList.remove('hidden');
 });
@@ -561,6 +572,53 @@ function confirmDelete(rec) {
   openDialog(no);
 }
 
+/* ---------- 비밀번호 바꾸기 ---------- */
+$('pwBtn').addEventListener('click', () => {
+  const dlg = $('dialog');
+  dlg.innerHTML = '';
+  const big = document.createElement('p'); big.className = 'big'; big.id = 'dlgTitle'; big.textContent = '비밀번호 바꾸기';
+  const note = document.createElement('p'); note.className = 'muted'; note.textContent = '새 비밀번호를 숫자 4자리로 두 번 써 주세요.';
+  const mk = (ph, id) => {
+    const i = document.createElement('input');
+    i.type = 'password'; i.inputMode = 'numeric'; i.maxLength = 4; i.placeholder = ph; i.id = id;
+    i.autocomplete = 'new-password'; i.style.textAlign = 'center'; i.style.marginTop = '10px';
+    i.setAttribute('aria-label', ph);
+    return i;
+  };
+  const a = mk('새 비밀번호', 'newPw1');
+  const b = mk('한 번 더', 'newPw2');
+  const err = document.createElement('p'); err.className = 'error';
+  const btns = document.createElement('div'); btns.className = 'btns';
+  const no = document.createElement('button'); no.className = 'btn btn-line'; no.type = 'button'; no.textContent = '취소';
+  const yes = document.createElement('button'); yes.className = 'btn'; yes.type = 'button'; yes.textContent = '바꾸기';
+  no.addEventListener('click', closeDialog);
+  yes.addEventListener('click', async () => {
+    const v = a.value.trim();
+    if (!/^\d{4}$/.test(v)) { err.textContent = '숫자 4자리로 써 주세요.'; return; }
+    if (v !== b.value.trim()) { err.textContent = '두 번 쓴 비밀번호가 달라요.'; return; }
+    yes.disabled = true; no.disabled = true;
+    try {
+      await api({ action: 'changePassword', newPassword: v });
+      pw = v;
+      try { sessionStorage.setItem('pePw', v); } catch (_) {}
+      dlg.innerHTML = '';
+      const done = document.createElement('p'); done.className = 'big'; done.id = 'dlgTitle'; done.textContent = '비밀번호를 바꿨어요!';
+      const tip = document.createElement('p'); tip.textContent = '다음에 들어올 때 새 비밀번호를 써 주세요.';
+      const ob = document.createElement('div'); ob.className = 'btns one';
+      const ok = document.createElement('button'); ok.className = 'btn btn-main'; ok.type = 'button'; ok.textContent = '확인';
+      ok.addEventListener('click', closeDialog);
+      ob.append(ok); dlg.append(done, tip, ob);
+      ok.focus();
+    } catch (ex) {
+      err.textContent = ex.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : ex.message;
+      yes.disabled = false; no.disabled = false;
+    }
+  });
+  btns.append(no, yes);
+  dlg.append(big, note, a, b, err, btns);
+  openDialog(a);
+});
+
 function openDialog(focusEl) { $('overlay').classList.remove('hidden'); focusEl.focus(); }
 function closeDialog() { $('overlay').classList.add('hidden'); }
 $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeDialog(); });
@@ -740,10 +798,11 @@ window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer
 
 /* ---------- 새로고침해도 이어서 ---------- */
 (async () => {
-  let saved = '';
-  try { saved = sessionStorage.getItem('peCode') || ''; } catch (_) {}
-  if (!saved) return;
+  let saved = '', savedPw = '';
+  try { saved = sessionStorage.getItem('peCode') || ''; savedPw = sessionStorage.getItem('pePw') || ''; } catch (_) {}
+  if (!saved || !savedPw) return;
   $('codeInput').value = saved;
+  $('pwInput').value = savedPw;
   $('loginForm').requestSubmit();
 })();
 </script>
