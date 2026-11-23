@@ -360,6 +360,23 @@ async function api(body) {
   return json;
 }
 
+/* ---------- 로그인 30일 유지 (이 기기의 브라우저에 저장) ---------- */
+const KEEP_DAYS = 30;
+const AUTH_KEY = 'peAuth';
+let autoLogin = false;
+function loadAuth() {
+  try {
+    const a = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
+    if (!a || !a.code || !a.pw || !a.t) return null;
+    if (Date.now() - a.t > KEEP_DAYS * 86400000) { clearAuth(); return null; }
+    return a;
+  } catch (_) { return null; }
+}
+function saveAuth(c, p, t) {
+  try { localStorage.setItem(AUTH_KEY, JSON.stringify({ code: c, pw: p, t: t || Date.now() })); } catch (_) {}
+}
+function clearAuth() { try { localStorage.removeItem(AUTH_KEY); } catch (_) {} }
+
 /* ---------- 입장 ---------- */
 $('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -372,11 +389,21 @@ $('loginForm').addEventListener('submit', async (e) => {
   try {
     data = await api({ action: 'login', code: c, password: p });
     code = c; pw = p;
-    try { sessionStorage.setItem('peCode', c); sessionStorage.setItem('pePw', p); } catch (_) {}
+    // 직접 로그인하면 오늘부터 30일, 자동 로그인은 처음 로그인한 날 기준 유지
+    saveAuth(c, p, autoLogin ? (loadAuth() || {}).t : null);
     showApp();
   } catch (err) {
-    $('loginError').textContent = err.message === 'Failed to fetch' ? '인터넷 연결을 확인해 주세요.' : err.message;
+    const offline = err.message === 'Failed to fetch';
+    if (autoLogin && !offline) {
+      // 다른 기기에서 비밀번호를 바꾼 경우 등: 저장된 정보 지우고 다시 입력
+      clearAuth();
+      $('pwInput').value = '';
+      $('loginError').textContent = '다시 로그인해 주세요.';
+    } else {
+      $('loginError').textContent = offline ? '인터넷 연결을 확인해 주세요.' : err.message;
+    }
   } finally {
+    autoLogin = false;
     $('loginBtn').disabled = false;
   }
 });
@@ -386,7 +413,7 @@ $('logoutBtn').addEventListener('click', () => {
   historyOpen = false;
   $('history').classList.add('hidden'); $('history').innerHTML = '';
   $('historyBtn').setAttribute('aria-expanded', 'false'); $('historyBtn').textContent = '지난 기록 모두 보기 ▼';
-  try { sessionStorage.removeItem('peCode'); sessionStorage.removeItem('pePw'); } catch (_) {}
+  clearAuth();
   $('codeInput').value = ''; $('pwInput').value = '';
   $('app').classList.add('hidden');
   $('login').classList.remove('hidden');
@@ -600,7 +627,8 @@ $('pwBtn').addEventListener('click', () => {
     try {
       await api({ action: 'changePassword', newPassword: v });
       pw = v;
-      try { sessionStorage.setItem('pePw', v); } catch (_) {}
+      const a = loadAuth();
+      saveAuth(code, v, a ? a.t : null);
       dlg.innerHTML = '';
       const done = document.createElement('p'); done.className = 'big'; done.id = 'dlgTitle'; done.textContent = '비밀번호를 바꿨어요!';
       const tip = document.createElement('p'); tip.textContent = '다음에 들어올 때 새 비밀번호를 써 주세요.';
@@ -796,13 +824,13 @@ function renderHistory(records, goal) {
 let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (data) drawChart(); }, 150); });
 
-/* ---------- 새로고침해도 이어서 ---------- */
-(async () => {
-  let saved = '', savedPw = '';
-  try { saved = sessionStorage.getItem('peCode') || ''; savedPw = sessionStorage.getItem('pePw') || ''; } catch (_) {}
-  if (!saved || !savedPw) return;
-  $('codeInput').value = saved;
-  $('pwInput').value = savedPw;
+/* ---------- 저장된 로그인으로 바로 들어가기 ---------- */
+(() => {
+  const a = loadAuth();
+  if (!a) return;
+  $('codeInput').value = a.code;
+  $('pwInput').value = a.pw;
+  autoLogin = true;
   $('loginForm').requestSubmit();
 })();
 </script>
